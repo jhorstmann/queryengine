@@ -21,6 +21,6 @@ fun compileExpression(expression: Expression, mode: Mode): RowCallable {
     return when (mode) {
         Mode.INTERPRETER -> InterpretedExpression(expression)
         Mode.CLOSURE_COMPILER -> expression.accept(ClosureCompiler())
-        else -> throw IllegalArgumentException("Mode $mode not yet implemented")
+        Mode.BYTECODE_COMPILER -> compile(expression)
     }
 }
