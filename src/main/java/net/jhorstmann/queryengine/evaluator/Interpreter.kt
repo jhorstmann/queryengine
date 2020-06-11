@@ -69,7 +69,7 @@ class Interpreter(val row: Array<Any?>, val accumulators: Array<Accumulator>) : 
     override fun visitAggregationFunction(expr: AggregationFunctionExpression): Any? {
         val arg = expr.operands[0].accept(this)
 
-        val idx = expr.resultIndex
+        val idx = expr.accumulatorIndex
         val acc = accumulators[idx]
         if (arg != null) {
             acc.accumulate(arg)

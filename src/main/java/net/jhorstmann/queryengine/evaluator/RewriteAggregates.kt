@@ -49,7 +49,11 @@ private object DetectAggregates : ExpressionVisitor<Boolean> {
 
     override fun visitColumn(expr: ColumnExpression): Boolean = false
 
-    override fun visitFunction(expr: FunctionExpression): Boolean = false
+    override fun visitFunction(expr: FunctionExpression): Boolean  {
+        // validate all args first
+        val args = expr.operands.map { it.accept(this) }
+        return args.any { it }
+    }
 
     override fun visitAggregationFunction(expr: AggregationFunctionExpression): Boolean {
         val containsAggregates = expr.operands.any { it.accept(this) }
@@ -67,9 +71,9 @@ private class RewriteAggregates(val groupExpressionCount: Int = 0) : DefaultExpr
 
     override fun visitAggregationFunction(expr: AggregationFunctionExpression): Expression {
         val ops = visitOperands(expr.operands)
-        val idx = groupExpressionCount + aggregateFunctions.size
-        val res = expr.with(operands = ops, resultIndex = idx)
+        val idx = aggregateFunctions.size
+        val res = expr.with(operands = ops, accumulatorIndex = idx)
         aggregateFunctions.add(res)
-        return ColumnExpression(res.function.name, idx, res.dataType)
+        return ColumnExpression(res.function.name, groupExpressionCount + idx, res.dataType)
     }
 }

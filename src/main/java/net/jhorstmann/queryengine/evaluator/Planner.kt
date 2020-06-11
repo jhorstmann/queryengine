@@ -8,7 +8,7 @@ import net.jhorstmann.queryengine.operator.Operator
 import net.jhorstmann.queryengine.operator.ProjectionOperator
 import java.lang.IllegalStateException
 
-private fun initialPlan(tableRegistry: TableRegistry, query: Query) : LogicalNode {
+private fun initialPlan(tableRegistry: TableRegistry, query: Query): LogicalNode {
     val tableName = query.from
     val schema = tableRegistry.getSchema(tableName)
     val scan = LogicalScanNode(tableName, schema)
@@ -19,8 +19,7 @@ private fun initialPlan(tableRegistry: TableRegistry, query: Query) : LogicalNod
 }
 
 
-fun buildLogicalPlan(tableRegistry: TableRegistry, query: Query) : LogicalNode {
-
+fun buildLogicalPlan(tableRegistry: TableRegistry, query: Query): LogicalNode {
     val plan = initialPlan(tableRegistry, query)
 
     val resolvedPlan = resolveSchema(plan)
@@ -46,7 +45,8 @@ fun buildPhysicalPlan(tableRegistry: TableRegistry, plan: LogicalNode, mode: Mod
             if (plan.groupBy.isNotEmpty()) {
                 throw IllegalStateException("Group by operator not yet supported")
             }
-            GlobalAggregationOperator(source, plan.aggregate.map { compileExpression(it, mode) }, plan.aggregateFunctions)
+            val initAccumulators = { initAccumulators(plan.aggregateFunctions) }
+            GlobalAggregationOperator(source, plan.aggregate.map { compileExpression(it, mode) }, initAccumulators)
         }
     }
 }

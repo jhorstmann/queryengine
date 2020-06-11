@@ -61,6 +61,4 @@ private class ResolveSchema(private val schema: Schema) : DefaultExpressionVisit
         val (idx, field) = lookupField(expr.name)
         return ColumnExpression(field.name, idx, dataType = field.type)
     }
-
 }
-

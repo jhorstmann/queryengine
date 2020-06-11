@@ -98,22 +98,22 @@ internal class ClosureCompiler : ExpressionVisitor<RowCallable> {
 
         if (op is ColumnExpression) {
             return when (expr.function) {
-                AggregationFunction.COUNT -> aggregateColumn(expr.resultIndex)
-                AggregationFunction.SUM -> aggregateColumn(expr.resultIndex)
-                AggregationFunction.MIN -> aggregateColumn(expr.resultIndex)
-                AggregationFunction.MAX -> aggregateColumn(expr.resultIndex)
-                AggregationFunction.ANY -> aggregateColumn(expr.resultIndex)
-                AggregationFunction.ALL -> aggregateColumn(expr.resultIndex)
+                AggregationFunction.COUNT -> aggregateColumn(expr.accumulatorIndex)
+                AggregationFunction.SUM -> aggregateColumn(expr.accumulatorIndex)
+                AggregationFunction.MIN -> aggregateColumn(expr.accumulatorIndex)
+                AggregationFunction.MAX -> aggregateColumn(expr.accumulatorIndex)
+                AggregationFunction.ANY -> aggregateColumn(expr.accumulatorIndex)
+                AggregationFunction.ALL -> aggregateColumn(expr.accumulatorIndex)
             }
         } else {
             val input = op.accept(this)
             return when (expr.function) {
-                AggregationFunction.COUNT -> aggregate(expr.resultIndex, input)
-                AggregationFunction.SUM -> aggregate(expr.resultIndex, input)
-                AggregationFunction.MIN -> aggregate(expr.resultIndex, input)
-                AggregationFunction.MAX -> aggregate(expr.resultIndex, input)
-                AggregationFunction.ANY -> aggregate(expr.resultIndex, input)
-                AggregationFunction.ALL -> aggregate(expr.resultIndex, input)
+                AggregationFunction.COUNT -> aggregate(expr.accumulatorIndex, input)
+                AggregationFunction.SUM -> aggregate(expr.accumulatorIndex, input)
+                AggregationFunction.MIN -> aggregate(expr.accumulatorIndex, input)
+                AggregationFunction.MAX -> aggregate(expr.accumulatorIndex, input)
+                AggregationFunction.ANY -> aggregate(expr.accumulatorIndex, input)
+                AggregationFunction.ALL -> aggregate(expr.accumulatorIndex, input)
             }
         }
     }

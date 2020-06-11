@@ -12,6 +12,8 @@ class FilterOperator(val source: Operator, val expression: RowCallable) : Operat
     }
 
     override fun next(): Array<Any?>? {
+        val source = this.source
+        val expression = this.expression
         while (true) {
             val row = source.next() ?: return null
             val res = expression(row, emptyArray())

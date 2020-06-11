@@ -2,7 +2,6 @@ package net.jhorstmann.queryengine.parser
 
 import net.jhorstmann.queryengine.ast.*
 import net.jhorstmann.queryengine.ast.Function
-import net.jhorstmann.queryengine.parser.parseExpression
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
 

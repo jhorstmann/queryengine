@@ -1,6 +1,5 @@
 package net.jhorstmann.queryengine;
 
-
 import net.jhorstmann.queryengine.ast.Query;
 import net.jhorstmann.queryengine.data.*;
 import net.jhorstmann.queryengine.evaluator.*;
@@ -29,16 +28,19 @@ public class SimpleSumBenchmark {
         private Table table;
         private Operator interpretedPlan;
         private Operator closurePlan;
+        private Operator bytecodePlan;
         private Schema schema;
 
 
         @Setup
         public void setup() {
+            schema = new Schema(Arrays.asList(new Field("foo", DataType.DOUBLE), new Field("bar", DataType.DOUBLE)));
 
-
-            schema = new Schema(Arrays.asList(new Field("foo", DataType.DOUBLE)));
-
-            List<List<Object>> values = IntStream.range(0, size).mapToObj(i -> List.of((Object)(double)(i / 1000))).collect(Collectors.toList());
+            List<List<Object>> values = IntStream.range(0, size).mapToObj(i -> {
+                double foo = (i / 1000);
+                double bar = (i / 1000);
+                return List.of((Object) foo, (Object) bar);
+            }).collect(Collectors.toList());
 
             table = new MemoryTable(schema, values);
 
@@ -46,16 +48,18 @@ public class SimpleSumBenchmark {
             registry.register("table", table);
 
 
-            Query query = ParserHelperKt.parseQuery("SELECT SUM(foo) FROM table");
+            Query query = ParserHelperKt.parseQuery("SELECT SUM(foo + 10*bar) / 2 FROM table");
             LogicalNode logicalPlan = PlannerKt.buildLogicalPlan(registry, query);
+
             interpretedPlan = PlannerKt.buildPhysicalPlan(registry, logicalPlan, Mode.INTERPRETER);
             closurePlan = PlannerKt.buildPhysicalPlan(registry, logicalPlan, Mode.CLOSURE_COMPILER);
+            bytecodePlan = PlannerKt.buildPhysicalPlan(registry, logicalPlan, Mode.BYTECODE_COMPILER);
         }
     }
 
 
     @Benchmark
-    public Object runInterpreter(Input input) throws Exception {
+    public Object runInterpreter(Input input) {
         Operator plan = input.interpretedPlan;
         plan.open();
         try {
@@ -66,8 +70,19 @@ public class SimpleSumBenchmark {
     }
 
     @Benchmark
-    public Object runClosureCompiler(Input input) throws Exception {
+    public Object runClosureCompiler(Input input) {
         Operator plan = input.closurePlan;
+        plan.open();
+        try {
+            return plan.next();
+        } finally {
+            plan.close();
+        }
+    }
+
+    @Benchmark
+    public Object runBytecode(Input input) {
+        Operator plan = input.bytecodePlan;
         plan.open();
         try {
             return plan.next();
@@ -87,14 +102,16 @@ public class SimpleSumBenchmark {
                 if (row == null) {
                     break;
                 }
-                sumAccumulator.accumulate(row[0]);
+                Object x = row[0];
+                if (x != null) {
+                    sumAccumulator.accumulate(x);
+                }
             }
         } finally {
             plan.close();
         }
         return sumAccumulator.finish();
     }
-
 
 
     public static void main(String[] args) throws RunnerException {

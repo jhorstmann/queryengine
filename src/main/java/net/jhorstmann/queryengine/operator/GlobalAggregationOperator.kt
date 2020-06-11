@@ -1,10 +1,9 @@
 package net.jhorstmann.queryengine.operator
 
-import net.jhorstmann.queryengine.ast.AggregationFunction
 import net.jhorstmann.queryengine.evaluator.*
 
 
-class GlobalAggregationOperator(val source: Operator, val expressions: List<RowCallable>, val aggregateFunctions: List<AggregationFunction>) : Operator() {
+class GlobalAggregationOperator(val source: Operator, val expressions: List<RowCallable>, val initAccumulators: () -> Array<Accumulator>) : Operator() {
     var result: Array<Any?>? = null
 
     override fun open() {
@@ -23,18 +22,6 @@ class GlobalAggregationOperator(val source: Operator, val expressions: List<RowC
         result = Array(accumulators.size) { accumulators[it].finish() }
     }
 
-    private fun initAccumulators(): Array<Accumulator> {
-        return aggregateFunctions.map {
-            when (it) {
-                AggregationFunction.COUNT -> CountAccumulator()
-                AggregationFunction.SUM -> SumAccumulator()
-                AggregationFunction.MIN -> MinAccumulator()
-                AggregationFunction.MAX -> MaxAccumulator()
-                AggregationFunction.ALL -> TODO("ALL")
-                AggregationFunction.ANY -> TODO("ANY")
-            }
-        }.toTypedArray()
-    }
 
     override fun close() {
         this.result = null

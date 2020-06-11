@@ -44,14 +44,14 @@ data class FunctionExpression(val function: Function, val operands: List<Express
     override fun <R> accept(visitor: ExpressionVisitor<R>): R = visitor.visitFunction(this)
 }
 
-data class AggregationFunctionExpression(val function: AggregationFunction, val operands: List<Expression>, val dataTypeNullable: DataType? = null, val resultIndex: Int = -1) : Expression() {
+data class AggregationFunctionExpression(val function: AggregationFunction, val operands: List<Expression>, val dataTypeNullable: DataType? = null, val accumulatorIndex: Int = -1) : Expression() {
     override val dataType: DataType
         get() = dataTypeNullable ?: throw IllegalStateException("Data type not initialized")
 
     constructor(function: AggregationFunction, vararg operands: Expression) : this(function, operands.toList())
 
     fun with(operands: List<Expression>, dataType: DataType) = this.copy(operands = operands, dataTypeNullable = dataType)
-    fun with(operands: List<Expression>, resultIndex: Int) = this.copy(operands = operands, resultIndex = resultIndex)
+    fun with(operands: List<Expression>, accumulatorIndex: Int) = this.copy(operands = operands, accumulatorIndex = accumulatorIndex)
 
     override fun <R> accept(visitor: ExpressionVisitor<R>): R = visitor.visitAggregationFunction(this)
 }
