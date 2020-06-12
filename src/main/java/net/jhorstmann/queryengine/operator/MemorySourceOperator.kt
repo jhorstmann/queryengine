@@ -1,5 +1,7 @@
 package net.jhorstmann.queryengine.operator
 
+import java.util.*
+
 class MemorySourceOperator(val indices: IntArray, private val values: List<List<Any?>>) : Operator() {
     private val len = values.size
     private var idx = 0
@@ -10,9 +12,7 @@ class MemorySourceOperator(val indices: IntArray, private val values: List<List<
     }
 
     override fun close() {
-        for (j in 0 until indices.size) {
-            row[j] = null
-        }
+        Arrays.fill(row, null)
     }
 
     override fun next(): Array<Any?>? {
@@ -25,7 +25,7 @@ class MemorySourceOperator(val indices: IntArray, private val values: List<List<
             val row = values[i]
             val res = this.row
 
-            for (j in 0 until row.size) {
+            for (j in row.indices) {
                 res[j] = row[indices[j]]
             }
 

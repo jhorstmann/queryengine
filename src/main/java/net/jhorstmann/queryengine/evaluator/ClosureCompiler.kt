@@ -25,11 +25,11 @@ internal class ClosureCompiler : ExpressionVisitor<RowCallable> {
             }
         }
 
-        private inline fun aggregateColumn(idx: Int): RowCallable {
+        private inline fun aggregateColumn(rowidx: Int, accidx: Int): RowCallable {
             return callable { row, acc ->
-                val res = row[idx]
+                val res = row[rowidx]
                 if (res != null) {
-                    acc[idx].accumulate(res)
+                    acc[accidx].accumulate(res)
                 }
                 null
             }
@@ -96,20 +96,25 @@ internal class ClosureCompiler : ExpressionVisitor<RowCallable> {
         // all aggregation functions take only a single argument
         val op = expr.operands[0]
 
+        // list all functions separately to inline separate closure implementations
         if (op is ColumnExpression) {
+            val rowidx = op.index
+            val accidx = expr.accumulatorIndex
             return when (expr.function) {
-                AggregationFunction.COUNT -> aggregateColumn(expr.accumulatorIndex)
-                AggregationFunction.SUM -> aggregateColumn(expr.accumulatorIndex)
-                AggregationFunction.MIN -> aggregateColumn(expr.accumulatorIndex)
-                AggregationFunction.MAX -> aggregateColumn(expr.accumulatorIndex)
-                AggregationFunction.ANY -> aggregateColumn(expr.accumulatorIndex)
-                AggregationFunction.ALL -> aggregateColumn(expr.accumulatorIndex)
+                AggregationFunction.COUNT -> aggregateColumn(rowidx, accidx)
+                AggregationFunction.SUM -> aggregateColumn(rowidx, accidx)
+                AggregationFunction.AVG -> aggregateColumn(rowidx, accidx)
+                AggregationFunction.MIN -> aggregateColumn(rowidx, accidx)
+                AggregationFunction.MAX -> aggregateColumn(rowidx, accidx)
+                AggregationFunction.ANY -> aggregateColumn(rowidx, accidx)
+                AggregationFunction.ALL -> aggregateColumn(rowidx, accidx)
             }
         } else {
             val input = op.accept(this)
             return when (expr.function) {
                 AggregationFunction.COUNT -> aggregate(expr.accumulatorIndex, input)
                 AggregationFunction.SUM -> aggregate(expr.accumulatorIndex, input)
+                AggregationFunction.AVG -> aggregate(expr.accumulatorIndex, input)
                 AggregationFunction.MIN -> aggregate(expr.accumulatorIndex, input)
                 AggregationFunction.MAX -> aggregate(expr.accumulatorIndex, input)
                 AggregationFunction.ANY -> aggregate(expr.accumulatorIndex, input)

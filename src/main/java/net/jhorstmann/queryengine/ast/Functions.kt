@@ -22,5 +22,5 @@ enum class Function(val type: FunctionType, val arity: Int) {
 }
 
 enum class AggregationFunction {
-    MIN, MAX, SUM, COUNT, ANY, ALL
+    MIN, MAX, SUM, COUNT, AVG, ANY, ALL
 }

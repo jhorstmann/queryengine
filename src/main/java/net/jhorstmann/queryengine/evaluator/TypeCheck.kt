@@ -105,7 +105,7 @@ private object TypeCheckVisitor : DefaultExpressionVisitor() {
                     return expr.with(operands = operands, dataType = dataType)
                 }
             }
-            AggregationFunction.MIN, AggregationFunction.MAX, AggregationFunction.SUM -> {
+            AggregationFunction.MIN, AggregationFunction.MAX, AggregationFunction.SUM, AggregationFunction.AVG -> {
                 // MIN/MAX could also be implemented for BOOLEANS
                 if (operands[0].dataType != DataType.DOUBLE) {
                     throw invalidTypes(function, operands)

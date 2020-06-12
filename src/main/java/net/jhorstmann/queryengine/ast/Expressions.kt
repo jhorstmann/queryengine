@@ -48,7 +48,7 @@ data class AggregationFunctionExpression(val function: AggregationFunction, val 
     override val dataType: DataType
         get() = dataTypeNullable ?: throw IllegalStateException("Data type not initialized")
 
-    constructor(function: AggregationFunction, vararg operands: Expression) : this(function, operands.toList())
+    constructor(function: AggregationFunction, operand: Expression) : this(function, listOf(operand))
 
     fun with(operands: List<Expression>, dataType: DataType) = this.copy(operands = operands, dataTypeNullable = dataType)
     fun with(operands: List<Expression>, accumulatorIndex: Int) = this.copy(operands = operands, accumulatorIndex = accumulatorIndex)

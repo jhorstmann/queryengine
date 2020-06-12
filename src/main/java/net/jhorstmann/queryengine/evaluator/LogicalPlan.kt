@@ -2,7 +2,6 @@ package net.jhorstmann.queryengine.evaluator
 
 import net.jhorstmann.queryengine.ast.AggregationFunction
 import net.jhorstmann.queryengine.ast.Expression
-import net.jhorstmann.queryengine.data.Field
 import net.jhorstmann.queryengine.data.Schema
 
 sealed class LogicalNode

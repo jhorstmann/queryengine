@@ -74,7 +74,7 @@ class Interpreter(val row: Array<Any?>, val accumulators: Array<Accumulator>) : 
         if (arg != null) {
             acc.accumulate(arg)
         }
-        return acc
+        return null
     }
 }
 

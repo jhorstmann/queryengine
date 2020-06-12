@@ -6,7 +6,7 @@ enum class DataType {
 
 data class Field(val name: String, val type: DataType)
 
-class Schema(val fields: List<Field>) {
+data class Schema(val fields: List<Field>) {
     private val byName = fields.associateBy { it.name }
 
     operator fun get(name: String): Field? = byName[name]

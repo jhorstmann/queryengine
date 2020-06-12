@@ -7,6 +7,7 @@ internal fun initAccumulators(aggregateFunctions: List<AggregationFunction>): Ar
         when (it) {
             AggregationFunction.COUNT -> CountAccumulator()
             AggregationFunction.SUM -> SumAccumulator()
+            AggregationFunction.AVG -> AvgAccumulator()
             AggregationFunction.MIN -> MinAccumulator()
             AggregationFunction.MAX -> MaxAccumulator()
             AggregationFunction.ALL -> TODO("ALL")
@@ -81,5 +82,23 @@ class MaxAccumulator() : Accumulator() {
 
     override fun finish(): Any? {
         return max
+    }
+}
+
+class AvgAccumulator(): Accumulator() {
+    private var sum: Double = 0.0
+    private var count: Int = 0
+
+    override fun accumulate(value: Any) {
+        count++
+        sum += value as Double
+    }
+
+    override fun finish(): Any? {
+        return if (count == 0) {
+            null
+        } else {
+            sum / count
+        }
     }
 }
