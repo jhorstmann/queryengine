@@ -52,15 +52,23 @@ class CsvSourceOperator(private val parserSupplier: Supplier<CSVParser>, private
 
             val row = Array(fields.size) {
                 val (i, type) = fields[it]
-                val stringValue: String? = record[i]
 
-                val typedValue: Any? = when (type) {
-                    DataType.STRING -> stringValue
-                    DataType.BOOLEAN -> stringValue?.toBoolean()
-                    DataType.DOUBLE -> stringValue?.toDouble()
+                @Suppress("IMPLICIT_CAST_TO_ANY")
+                if (i < record.size()) {
+                    val stringValue: String? = record[i]
+
+                    if (stringValue.isNullOrEmpty()) {
+                        null
+                    } else {
+                        when (type) {
+                            DataType.STRING -> stringValue
+                            DataType.BOOLEAN -> stringValue.toBoolean()
+                            DataType.DOUBLE -> stringValue.toDouble()
+                        }
+                    }
+                } else {
+                    null
                 }
-
-                typedValue
             }
 
             return row

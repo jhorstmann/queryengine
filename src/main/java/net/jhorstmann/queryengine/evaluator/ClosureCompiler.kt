@@ -9,29 +9,55 @@ internal class ClosureCompiler : ExpressionVisitor<RowCallable> {
     companion object {
         private inline fun callable(crossinline closure: (Array<Any?>, Array<Accumulator>) -> Any?): RowCallable {
             return object : RowCallable() {
-                override fun invoke(row: Array<Any?>, accumulators: Array<Accumulator>): Any? {
-                    return closure(row, accumulators)
+                override fun invoke(row: Array<Any?>, acc: Array<Accumulator>): Any? {
+                    return closure(row, acc)
+                }
+            }
+        }
+
+        private inline fun unary(ops: List<RowCallable>, crossinline closure: (Any) -> Any?): RowCallable {
+            val op = ops[0]
+            return object : RowCallable() {
+                override fun invoke(row: Array<Any?>, acc: Array<Accumulator>): Any? {
+                    val a = op(row, acc) ?: return null
+                    return closure(a)
+                }
+            }
+        }
+
+        private inline fun binary(ops: List<RowCallable>, crossinline closure: (Any, Any) -> Any?): RowCallable {
+            val op1 = ops[0]
+            val op2 = ops[1]
+            return object : RowCallable() {
+                override fun invoke(row: Array<Any?>, acc: Array<Accumulator>): Any? {
+                    val a = op1(row, acc) ?: return null
+                    val b = op2(row, acc) ?: return null
+                    return closure(a, b)
                 }
             }
         }
 
         private inline fun aggregate(idx: Int, input: RowCallable): RowCallable {
-            return callable { row, acc ->
-                val res = input(row, acc)
-                if (res != null) {
-                    acc[idx].accumulate(res)
+            return object : RowCallable() {
+                override fun invoke(row: Array<Any?>, acc: Array<Accumulator>): Any? {
+                    val res = input(row, acc)
+                    if (res != null) {
+                        acc[idx].accumulate(res)
+                    }
+                    return null
                 }
-                null
             }
         }
 
         private inline fun aggregateColumn(rowidx: Int, accidx: Int): RowCallable {
-            return callable { row, acc ->
-                val res = row[rowidx]
-                if (res != null) {
-                    acc[accidx].accumulate(res)
+            return object : RowCallable() {
+                override fun invoke(row: Array<Any?>, acc: Array<Accumulator>): Any? {
+                    val res = row[rowidx]
+                    if (res != null) {
+                        acc[accidx].accumulate(res)
+                    }
+                    return null
                 }
-                null
             }
         }
 
@@ -66,28 +92,67 @@ internal class ClosureCompiler : ExpressionVisitor<RowCallable> {
         val ops = expr.operands.map { it.accept(this) }
 
         return when (expr.function) {
-            Function.IF -> callable { row, acc -> if (ops[0](row, acc) as Boolean) ops[1](row, acc) else ops[2](row, acc) }
+            Function.IF -> callable { row, acc ->
+                val cond = ops[0](row, acc) as Boolean?
+                when {
+                    cond == null -> null
+                    cond -> ops[1](row, acc)
+                    else -> ops[2](row, acc)
+                }
+            }
 
-            Function.AND -> callable { row, acc -> ops[0](row, acc) as Boolean && ops[1](row, acc) as Boolean }
-            Function.OR -> callable { row, acc -> ops[0](row, acc) as Boolean || ops[1](row, acc) as Boolean }
-            Function.NOT -> callable { row, acc -> !(ops[0](row, acc) as Boolean) }
+            Function.AND -> callable { row, acc ->
+                val p = ops[0](row, acc) as Boolean?
+                when {
+                    p == null -> {
+                        val q = ops[1](row, acc) as Boolean?
+                        if (q == null) {
+                            null
+                        } else if (!q) {
+                            false
+                        } else {
+                            null
+                        }
+                    }
+                    p -> {
+                        ops[1](row, acc) as Boolean?
+                    }
+                    else -> false
+                }
+            }
+            Function.OR -> callable { row, acc ->
+                val p = ops[0](row, acc) as Boolean?
+                when {
+                    p == null -> {
+                        val q = ops[1](row, acc) as Boolean?
+                        if (q == null) {
+                            null
+                        } else if (q) {
+                            true
+                        } else {
+                            null
+                        }
+                    }
+                    p -> true
+                    else -> ops[1](row, acc) as Boolean?
+                }
+            }
+            Function.NOT -> unary(ops) { a -> !(a as Boolean) }
 
-            Function.UNARY_PLUS -> ops[0]
-            Function.UNARY_MINUS -> callable { row, acc -> -(ops[0](row, acc) as Double) }
-            Function.ADD -> callable { row, acc -> ops[0](row, acc) as Double + ops[1](row, acc) as Double }
-            Function.SUB -> callable { row, acc -> ops[0](row, acc) as Double - ops[1](row, acc) as Double }
-            Function.MUL -> callable { row, acc -> ops[0](row, acc) as Double * ops[1](row, acc) as Double }
-            Function.DIV -> callable { row, acc -> ops[0](row, acc) as Double / ops[1](row, acc) as Double }
-            Function.MOD -> callable { row, acc -> ops[0](row, acc) as Double % ops[1](row, acc) as Double }
+            Function.UNARY_PLUS -> unary(ops) { a -> a as Double }
+            Function.UNARY_MINUS -> unary(ops) { a -> -(a as Double) }
+            Function.ADD -> binary(ops) { a, b -> (a as Double) + (b as Double) }
+            Function.SUB -> binary(ops) { a, b -> (a as Double) - (b as Double) }
+            Function.MUL -> binary(ops) { a, b -> (a as Double) * (b as Double) }
+            Function.DIV -> binary(ops) { a, b -> (a as Double) / (b as Double) }
+            Function.MOD -> binary(ops) { a, b -> (a as Double) % (b as Double) }
 
-            Function.CMP_EQ -> callable { row, acc -> ops[0](row, acc) as Double == ops[1](row, acc) as Double }
-            Function.CMP_NE -> callable { row, acc -> ops[0](row, acc) as Double != ops[1](row, acc) as Double }
-            Function.CMP_LT -> callable { row, acc -> (ops[0](row, acc) as Double) < (ops[1](row, acc) as Double) }
-            Function.CMP_LE -> callable { row, acc -> ops[0](row, acc) as Double <= ops[1](row, acc) as Double }
-            Function.CMP_GE -> callable { row, acc -> ops[0](row, acc) as Double >= ops[1](row, acc) as Double }
-            Function.CMP_GT -> callable { row, acc -> ops[0](row, acc) as Double > ops[1](row, acc) as Double }
-
-
+            Function.CMP_EQ -> binary(ops) { a, b -> a == b }
+            Function.CMP_NE -> binary(ops) { a, b -> a != b }
+            Function.CMP_LT -> binary(ops) { a, b -> (a as Double) < (b as Double) }
+            Function.CMP_LE -> binary(ops) { a, b -> (a as Double) <= (b as Double) }
+            Function.CMP_GE -> binary(ops) { a, b -> (a as Double) >= (b as Double) }
+            Function.CMP_GT -> binary(ops) { a, b -> (a as Double) > (b as Double) }
         }
     }
 

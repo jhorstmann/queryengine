@@ -37,16 +37,57 @@ class Interpreter(val row: Array<Any?>, val accumulators: Array<Accumulator>) : 
             else -> ops.map { it.accept(this) }
         }
 
+        if (args.any { it == null }) {
+            return null
+        }
+
         return when (expr.function) {
             Function.IF -> {
-                if (ops[0].accept(this) as Boolean) {
-                    ops[1].accept(this)
-                } else {
-                    ops[2].accept(this)
+                val cond = ops[0].accept(this) as Boolean?
+                when {
+                    cond == null -> null
+                    cond -> ops[1].accept(this)
+                    else -> ops[2].accept(this)
                 }
             }
-            Function.AND -> ops[0].accept(this) as Boolean && ops[1].accept(this) as Boolean
-            Function.OR -> ops[0].accept(this) as Boolean || ops[1].accept(this) as Boolean
+            Function.AND -> {
+                val p = ops[0].accept(this) as Boolean?
+                when {
+                    p == null -> {
+                        val q = ops[1].accept(this) as Boolean?
+                        if (q == null) {
+                            null
+                        } else if (!q) {
+                            false
+                        } else {
+                            null
+                        }
+                    }
+                    p -> {
+                        ops[1].accept(this) as Boolean?
+                    }
+                    else -> false
+                }
+            }
+            Function.OR -> {
+                val p = ops[0].accept(this) as Boolean?
+                when {
+                    p == null -> {
+                        val q = ops[1].accept(this) as Boolean?
+                        if (q == null) {
+                            null
+                        } else if (q) {
+                            true
+                        } else {
+                            null
+                        }
+                    }
+                    p -> true
+                    else -> {
+                        ops[1].accept(this) as Boolean?
+                    }
+                }
+            }
             Function.NOT -> !(ops[0].accept(this) as Boolean)
 
             Function.UNARY_PLUS -> args[0] as Double

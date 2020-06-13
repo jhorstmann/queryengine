@@ -62,7 +62,6 @@ fun compile(expression: Expression): RowCallable {
     ga.returnValue()
 
     val maxStack = expression.accept(MaxStackVisitor)
-    println("maxStack = $maxStack")
     call.visitMaxs(maxStack, 3)
     call.visitEnd()
 
@@ -248,6 +247,7 @@ private class Compiler(private val ga: GeneratorAdapter) : ExpressionVisitor<Uni
                 ga.push(1)
 
                 ga.ifCmp(Type.INT_TYPE, GeneratorAdapter.EQ, iftrue)
+                ga.mark(iffalse)
                 ops[2].accept(this)
                 ga.goTo(end)
 
@@ -261,7 +261,134 @@ private class Compiler(private val ga: GeneratorAdapter) : ExpressionVisitor<Uni
 
                 ga.mark(end)
             }
-            else -> TODO("not implemented")
+            Function.AND -> {
+                val nullAnd = Label()
+                val trueAnd = Label()
+                val falseAnd = Label()
+                val resultTrue = Label()
+                val resultFalse = Label()
+                val resultNull = Label()
+                val resultNullPop = Label()
+                val end = Label()
+
+                ops[0].accept(this)
+                ga.dup()
+                ga.ifNull(nullAnd)
+
+                ga.unbox(Type.BOOLEAN_TYPE)
+                ga.push(true)
+                ga.ifCmp(Type.INT_TYPE, GeneratorAdapter.EQ, trueAnd)
+                ga.goTo(falseAnd)
+
+                ga.mark(trueAnd)
+                ops[1].accept(this)
+                ga.dup()
+                ga.ifNull(resultNullPop)
+
+                ga.unbox(Type.BOOLEAN_TYPE)
+                ga.push(true)
+                ga.ifCmp(Type.INT_TYPE, GeneratorAdapter.EQ, resultTrue)
+                ga.goTo(resultFalse)
+
+                ga.mark(nullAnd)
+                ga.pop()
+                ops[1].accept(this)
+                ga.dup()
+                ga.ifNull(resultNullPop)
+
+                ga.unbox(Type.BOOLEAN_TYPE)
+                ga.push(true)
+                ga.ifCmp(Type.INT_TYPE, GeneratorAdapter.EQ, resultNull)
+                ga.goTo(resultFalse)
+
+                ga.mark(falseAnd)
+                ga.goTo(resultFalse)
+
+                ga.mark(resultTrue)
+                ga.push(true)
+                ga.box(Type.BOOLEAN_TYPE)
+                ga.goTo(end)
+
+                ga.mark(resultFalse)
+                ga.push(0)
+                ga.box(Type.BOOLEAN_TYPE)
+                ga.goTo(end)
+
+                ga.mark(resultNullPop)
+                ga.pop()
+                ga.pushNull()
+                ga.goTo(end)
+
+                ga.mark(resultNull)
+                ga.pushNull()
+                ga.goTo(end)
+
+                ga.mark(end)
+            }
+            Function.OR -> {
+                val nullOr = Label()
+                val falseOr = Label()
+                val trueOr = Label()
+                val resultTrue = Label()
+                val resultFalse = Label()
+                val resultNull = Label()
+                val resultNullPop = Label()
+                val end = Label()
+
+                ops[0].accept(this)
+                ga.dup()
+                ga.ifNull(nullOr)
+
+                ga.unbox(Type.BOOLEAN_TYPE)
+                ga.push(true)
+                ga.ifCmp(Type.INT_TYPE, GeneratorAdapter.EQ, trueOr)
+                ga.goTo(falseOr)
+
+                ga.mark(trueOr)
+                ga.goTo(resultTrue)
+
+                ga.mark(falseOr)
+                ops[1].accept(this)
+                ga.dup()
+                ga.ifNull(resultNullPop)
+
+                ga.unbox(Type.BOOLEAN_TYPE)
+                ga.push(true)
+                ga.ifCmp(Type.INT_TYPE, GeneratorAdapter.EQ, resultTrue)
+                ga.goTo(resultFalse)
+
+                ga.mark(nullOr)
+                ga.pop()
+                ops[1].accept(this)
+                ga.dup()
+                ga.ifNull(resultNullPop)
+
+                ga.unbox(Type.BOOLEAN_TYPE)
+                ga.push(true)
+                ga.ifCmp(Type.INT_TYPE, GeneratorAdapter.EQ, resultTrue)
+                ga.goTo(resultNull)
+
+                ga.mark(resultTrue)
+                ga.push(true)
+                ga.box(Type.BOOLEAN_TYPE)
+                ga.goTo(end)
+
+                ga.mark(resultFalse)
+                ga.push(0)
+                ga.box(Type.BOOLEAN_TYPE)
+                ga.goTo(end)
+
+                ga.mark(resultNullPop)
+                ga.pop()
+                ga.pushNull()
+                ga.goTo(end)
+
+                ga.mark(resultNull)
+                ga.pushNull()
+                ga.goTo(end)
+
+                ga.mark(end)
+            }
         }
     }
 
