@@ -23,8 +23,10 @@ inline fun Operator.forEach(consumer:(Array<Any?>) -> Unit) {
 }
 
 fun <T> Operator.map(mapper: (Array<Any?>) -> T): List<T> {
-    val result = ArrayList<T>()
+    return mapTo(ArrayList(), mapper)
+}
+
+fun <T> Operator.mapTo(result: MutableList<T>, mapper: (Array<Any?>) -> T): MutableList<T> {
     forEach { result.add(mapper(it)) }
     return result
 }
-

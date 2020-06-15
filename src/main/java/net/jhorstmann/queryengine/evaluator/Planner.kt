@@ -2,11 +2,7 @@ package net.jhorstmann.queryengine.evaluator
 
 import net.jhorstmann.queryengine.ast.Query
 import net.jhorstmann.queryengine.data.TableRegistry
-import net.jhorstmann.queryengine.operator.FilterOperator
-import net.jhorstmann.queryengine.operator.GlobalAggregationOperator
-import net.jhorstmann.queryengine.operator.Operator
-import net.jhorstmann.queryengine.operator.ProjectionOperator
-import java.lang.IllegalStateException
+import net.jhorstmann.queryengine.operator.*
 
 private fun initialPlan(tableRegistry: TableRegistry, query: Query): LogicalNode {
     val tableName = query.from
@@ -14,8 +10,9 @@ private fun initialPlan(tableRegistry: TableRegistry, query: Query): LogicalNode
     val scan = LogicalScanNode(tableName, schema)
     val filter = query.filter?.let { LogicalFilterNode(scan, it) } ?: scan
     val projection = LogicalProjectionNode(filter, query.select)
+    val orderBy = query.orderByColumn?.let { LogicalOrderByNode(projection, it) } ?: projection
 
-    return projection
+    return orderBy
 }
 
 
@@ -42,11 +39,20 @@ fun buildPhysicalPlan(tableRegistry: TableRegistry, plan: LogicalNode, mode: Mod
         }
         is LogicalAggregationNode -> {
             val source = buildPhysicalPlan(tableRegistry, plan.source, mode)
-            if (plan.groupBy.isNotEmpty()) {
-                throw IllegalStateException("Group by operator not yet supported")
-            }
             val initAccumulators = { initAccumulators(plan.aggregateFunctions) }
-            GlobalAggregationOperator(source, plan.aggregate.map { compileExpression(it, mode) }, initAccumulators)
+
+            val aggregates = plan.aggregate.map { compileExpression(it, mode) }
+
+            if (plan.groupBy.isNotEmpty()) {
+                val groupBy = plan.groupBy.map { compileExpression(it, mode) }
+                GroupByAggregationOperator(source, groupBy, aggregates, initAccumulators)
+            } else {
+                GlobalAggregationOperator(source, aggregates, initAccumulators)
+            }
+        }
+        is LogicalOrderByNode -> {
+            val source = buildPhysicalPlan(tableRegistry, plan.source, mode)
+            OrderByOperator(source, plan.index - 1)
         }
     }
 }

@@ -51,6 +51,7 @@ fun parseQuery(query: String) : Query {
     val from = unquote(selectCtx.from)
     val select = selectCtx.select.expression().map { it.accept(ExpressionAstBuilder) }
     val filter = selectCtx.where?.expr?.accept(ExpressionAstBuilder)
+    val orderByColumn = selectCtx.orderBy?.column?.text?.toInt()
 
-    return Query(select, from, filter)
+    return Query(select, from, filter, orderByColumn)
 }

@@ -30,6 +30,10 @@ fun typeCheck(plan: LogicalNode): LogicalNode {
             val source = typeCheck(plan.source)
             LogicalAggregationNode(source, groupBy, aggregate, plan.aggregateFunctions)
         }
+        is LogicalOrderByNode -> {
+            val source = typeCheck(plan.source)
+            LogicalOrderByNode(source, plan.index)
+        }
     }
 }
 

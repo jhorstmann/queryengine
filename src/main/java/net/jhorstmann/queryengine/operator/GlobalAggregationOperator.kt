@@ -14,8 +14,8 @@ class GlobalAggregationOperator(val source: Operator, val expressions: List<RowC
         val len = expressions.size
 
         source.forEach { row ->
-            for (i in 0 until len) {
-                expressions[i].invoke(row, accumulators)
+            expressions.forEach {
+                it.invoke(row, accumulators)
             }
         }
 

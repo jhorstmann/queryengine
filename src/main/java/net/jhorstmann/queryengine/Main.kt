@@ -1,9 +1,29 @@
 package net.jhorstmann.queryengine
 
 import net.jhorstmann.queryengine.data.*
+import net.jhorstmann.queryengine.evaluator.Mode
 import net.jhorstmann.queryengine.evaluator.buildLogicalPlan
 import net.jhorstmann.queryengine.evaluator.buildPhysicalPlan
+import net.jhorstmann.queryengine.operator.map
 import net.jhorstmann.queryengine.parser.parseQuery
+import java.util.*
+
+fun query(registry: TableRegistry, query: String, mode: Mode = Mode.INTERPRETER): List<Array<Any?>> {
+    val ast = parseQuery(query)
+
+    val logicalPlan = buildLogicalPlan(registry, ast)
+
+    val physicalPlan = buildPhysicalPlan(registry, logicalPlan, mode)
+
+    return physicalPlan.map { it }
+}
+
+fun query(tableName: String, table: Table, query: String, mode: Mode = Mode.INTERPRETER): List<Array<Any?>> {
+    val registry = TableRegistry()
+    registry.register(tableName, table)
+
+    return query(registry, query, mode)
+}
 
 fun main() {
     val schema = Schema(listOf(
@@ -23,20 +43,15 @@ fun main() {
     val registry = TableRegistry()
     registry.register("orders", table)
 
-    val query = parseQuery("""
-        SELECT SUM(net_price + net_shipping_cost) * 1.25
+    val query = """
+        SELECT SUM(net_price + net_shipping_cost) * 1.25, country
           FROM orders
-         WHERE country = 'DE'
-    """)
+         ORDER BY 1
+    """
 
-    val logicalPlan = buildLogicalPlan(registry, query)
+    val rows = query(registry, query)
 
-    val physicalPlan = buildPhysicalPlan(registry, logicalPlan)
-
-    physicalPlan.open()
-    while (true) {
-        val row = physicalPlan.next() ?: break
-        println(row.asList())
+    for (row in rows) {
+        println(Arrays.toString(row))
     }
-    physicalPlan.close()
 }

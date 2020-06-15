@@ -13,6 +13,7 @@ private fun findScanNode(plan: LogicalNode): LogicalScanNode {
         is LogicalScanNode -> plan
         is LogicalProjectionNode -> findScanNode(plan.source)
         is LogicalFilterNode -> findScanNode(plan.source)
+        is LogicalOrderByNode -> findScanNode(plan.source)
         is LogicalAggregationNode -> throw IllegalStateException("Unexpected aggregation node in this stage")
     }
 }
@@ -29,6 +30,10 @@ private fun rewritePlan(plan: LogicalNode, resolver: ResolveSchema): LogicalNode
             val filter = plan.filter.accept(resolver)
             val source = rewritePlan(plan.source, resolver)
             LogicalFilterNode(source, filter)
+        }
+        is LogicalOrderByNode -> {
+            val source = rewritePlan(plan.source, resolver)
+            LogicalOrderByNode(source, plan.index)
         }
         is LogicalAggregationNode -> throw IllegalStateException("Unexpected aggregation node in this stage")
     }

@@ -7,6 +7,7 @@ selectStatement
         : SELECT select=selectList
           FROM from=identifier
           where=whereClause?
+          orderBy=orderByClause?
           EOF
         ;
 
@@ -14,12 +15,16 @@ whereClause
         : WHERE expr=expression
         ;
 
+orderByClause
+        : ORDER BY column=INTEGER_LITERAL // TODO: multiple sort columns
+        ;
+
 selectList
         : expression (',' expression)*
         ;
 
 expression
-        : literal=NUMERIC_LITERAL # numericLiteralExpression
+        : literal=(DECIMAL_LITERAL | INTEGER_LITERAL) # numericLiteralExpression
         | literal=(TRUE | FALSE) # booleanLiteralExpression
         | literal=STRING_LITERAL # stringLiteralExpression
         | identifier # columnNameExpression
@@ -39,9 +44,11 @@ identifier
         | QUOTED_IDENTIFIER
         ;
 
-SELECT  : S E L E C T ;
-FROM    : F R O M ;
-WHERE   : W H E R E ;
+SELECT  : S E L E C T;
+FROM    : F R O M;
+WHERE   : W H E R E;
+ORDER   : O R D E R;
+BY      : B Y;
 
 NOT     : N O T;
 AND     : A N D;
@@ -54,8 +61,12 @@ END     : E N D;
 TRUE    : T R U E;
 FALSE   : F A L S E;
 
-NUMERIC_LITERAL
-        : DIGIT+ ( '.' DIGIT+ )? ( E [-+]? DIGIT+ )?
+DECIMAL_LITERAL
+        : DIGIT+ (( '.' DIGIT+ ) | ( E [-+]? DIGIT+ ))
+        ;
+
+INTEGER_LITERAL
+        : DIGIT+
         ;
 
 IDENTIFIER

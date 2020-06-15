@@ -33,4 +33,18 @@ class ParserTest {
                 parseExpression("SUM(foo)"))
     }
 
+    @Test
+    fun `should parse complete query`() {
+        val actual = parseQuery("SELECT foo, bar FROM table WHERE baz ORDER BY 2")
+
+        val expected = Query(
+                listOf(
+                        IdentifierExpression("foo"),
+                        IdentifierExpression("bar")),
+                "table",
+                IdentifierExpression("baz"), 2)
+
+        assertEquals(expected, actual)
+    }
+
 }

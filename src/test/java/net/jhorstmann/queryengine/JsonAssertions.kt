@@ -21,7 +21,7 @@ fun assertJsonEquals(expected: Any?, actual: Any?) {
 
         val diff = Diff.formatDiff(expectedLines, actualLines).joinToString("\n")
 
-        throw AssertionError(diff)
+        throw AssertionError("Difference:\n$diff")
     }
 
 }
