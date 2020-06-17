@@ -98,12 +98,12 @@ class Interpreter(val row: Array<Any?>, val accumulators: Array<Accumulator>) : 
             Function.DIV -> args[0] as Double / args[1] as Double
             Function.MOD -> args[0] as Double % args[1] as Double
 
-            Function.CMP_EQ -> (args[0] as Double) == (args[1] as Double)
-            Function.CMP_NE -> (args[0] as Double) != (args[1] as Double)
-            Function.CMP_LT -> (args[0] as Double) < (args[1] as Double)
-            Function.CMP_LE -> (args[0] as Double) <= (args[1] as Double)
-            Function.CMP_GE -> (args[0] as Double) >= (args[1] as Double)
-            Function.CMP_GT -> (args[0] as Double) > (args[1] as Double)
+            Function.CMP_EQ -> args[0] == args[1]
+            Function.CMP_NE -> args[0] != args[1]
+            Function.CMP_LT -> (args[0] as Comparable<Any>) < (args[1] as Comparable<Any>)
+            Function.CMP_LE -> (args[0] as Comparable<Any>) <= (args[1] as Comparable<Any>)
+            Function.CMP_GE -> (args[0] as Comparable<Any>) >= (args[1] as Comparable<Any>)
+            Function.CMP_GT -> (args[0] as Comparable<Any>) > (args[1] as Comparable<Any>)
         }
     }
 
