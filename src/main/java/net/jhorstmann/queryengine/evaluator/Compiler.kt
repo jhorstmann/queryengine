@@ -10,7 +10,7 @@ abstract class RowCallable {
     abstract operator fun invoke(row: Array<Any?>, acc: Array<Accumulator>): Any?
 }
 
-private class InterpretedExpression(val expression: Expression): RowCallable() {
+private class InterpretedRowCallable(val expression: Expression): RowCallable() {
     override fun invoke(row: Array<Any?>, acc: Array<Accumulator>): Any? {
         return expression.accept(Interpreter(row, acc))
     }
@@ -19,7 +19,7 @@ private class InterpretedExpression(val expression: Expression): RowCallable() {
 
 fun compileExpression(expression: Expression, mode: Mode): RowCallable {
     return when (mode) {
-        Mode.INTERPRETER -> InterpretedExpression(expression)
+        Mode.INTERPRETER -> InterpretedRowCallable(expression)
         Mode.CLOSURE_COMPILER -> expression.accept(ClosureCompiler())
         Mode.BYTECODE_COMPILER -> compile(expression)
     }
