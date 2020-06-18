@@ -187,11 +187,29 @@ private class Compiler(private val ga: GeneratorAdapter) : ExpressionVisitor<Uni
     }
 
     fun binaryComparisonExpression(ops: List<Expression>, cmpType: Int) {
-        binaryExpression(ops, Type.DOUBLE_TYPE) {
+        val dataType = ops[0].dataType
+        val type = when (dataType) {
+            DataType.DOUBLE -> Type.DOUBLE_TYPE
+            DataType.BOOLEAN -> Type.BOOLEAN_TYPE
+            DataType.STRING -> stringType
+        }
+
+        binaryExpression(ops, type) {
             val eq = Label()
             val end = Label()
 
-            ga.visitMethodInsn(Opcodes.INVOKESTATIC, doubleType.internalName, "compare", "(DD)I", false)
+            when (dataType) {
+                DataType.DOUBLE -> {
+                    ga.visitMethodInsn(Opcodes.INVOKESTATIC, doubleType.internalName, "compare", "(DD)I", false)
+                }
+                DataType.STRING -> {
+                    ga.visitMethodInsn(Opcodes.INVOKEVIRTUAL, stringType.internalName, "compareTo", "(${stringType.descriptor})I", false)
+                }
+                DataType.BOOLEAN -> {
+                    ga.visitMethodInsn(Opcodes.INVOKESTATIC, booleanType.internalName, "compare", "(ZZ)I", false)
+                }
+            }
+
             ga.push(0)
             ga.ifICmp(cmpType, eq)
             ga.push(false)
