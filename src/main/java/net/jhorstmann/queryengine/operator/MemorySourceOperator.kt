@@ -25,7 +25,7 @@ class MemorySourceOperator(val indices: IntArray, private val values: List<List<
             val row = values[i]
             val res = this.row
 
-            for (j in row.indices) {
+            for (j in indices.indices) {
                 res[j] = row[indices[j]]
             }
 

@@ -7,16 +7,17 @@ import net.jhorstmann.queryengine.parser.parseQuery
 
 fun main() {
     val schema = Schema(listOf(
+            Field("id", DataType.STRING),
             Field("country", DataType.STRING),
             Field("net_price", DataType.DOUBLE),
             Field("net_shipping_cost", DataType.DOUBLE)))
 
     val table = MemoryTable(schema, listOf(
-            listOf("DE", 100.0, 5.0),
-            listOf("AT", 100.0, 5.0),
-            listOf("CH", 50.0, 0.0),
-            listOf("DE", 50.0, 0.0),
-            listOf("DE", 200.0, 10.0)
+            listOf("1", "DE", 100.0, 5.0),
+            listOf("2", "AT", 100.0, 5.0),
+            listOf("3", "CH", 50.0, 0.0),
+            listOf("4", "DE", 50.0, 0.0),
+            listOf("5", "DE", 200.0, 10.0)
     ))
 
     val registry = TableRegistry()
