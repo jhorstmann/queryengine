@@ -9,14 +9,14 @@ import java.io.FileReader
 import java.nio.charset.StandardCharsets
 import java.util.function.Supplier
 
-class CsvTable(private val file: File, private val schema: Schema) {
+class CsvTable(private val file: File, override val schema: Schema): Table() {
 
     private val format = CSVFormat.DEFAULT
             .withFirstRecordAsHeader()
             .withDelimiter(',')
             .withIgnoreEmptyLines(true)
 
-    fun getScanOperator(fields: List<String>): Operator {
+    override fun getScanOperator(projection: List<String>): Operator {
         val parserSupplier = Supplier<CSVParser>() {
             val reader = FileReader(file, StandardCharsets.UTF_8)
             val parser = format.parse(reader)
@@ -24,6 +24,6 @@ class CsvTable(private val file: File, private val schema: Schema) {
             parser
         }
 
-        return CsvSourceOperator(parserSupplier, schema, fields)
+        return CsvSourceOperator(parserSupplier, schema, projection)
     }
 }

@@ -30,11 +30,13 @@ public class SimpleSumBenchmark {
         private Operator closurePlan;
         private Operator bytecodePlan;
         private Schema schema;
+        private List<String> projection;
 
 
         @Setup
         public void setup() {
             schema = new Schema(Arrays.asList(new Field("foo", DataType.DOUBLE), new Field("bar", DataType.DOUBLE)));
+            projection = schema.getFields().stream().map(Field::getName).collect(Collectors.toList());
 
             List<List<Object>> values = IntStream.range(0, size).mapToObj(i -> {
                 double foo = (i / 1000);
@@ -93,7 +95,7 @@ public class SimpleSumBenchmark {
 
     @Benchmark
     public Object runNative(Input input) {
-        Operator plan = input.table.getScanOperator(input.schema);
+        Operator plan = input.table.getScanOperator(input.projection);
         plan.open();
         Accumulator sumAccumulator = new SumAccumulator();
         try {

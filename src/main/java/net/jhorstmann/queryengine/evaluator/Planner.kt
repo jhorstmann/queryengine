@@ -31,7 +31,7 @@ fun buildLogicalPlan(tableRegistry: TableRegistry, query: Query): LogicalNode {
 
 fun buildPhysicalPlan(tableRegistry: TableRegistry, plan: LogicalNode, mode: Mode = Mode.INTERPRETER): Operator {
     return when (plan) {
-        is LogicalScanNode -> tableRegistry.getTable(plan.table).getScanOperator(plan.schema)
+        is LogicalScanNode -> tableRegistry.getTable(plan.table).getScanOperator(plan.schema.fields.map { it.name })
         is LogicalFilterNode -> {
             val source = buildPhysicalPlan(tableRegistry, plan.source, mode)
             FilterOperator(source, compileExpression(plan.filter, mode))

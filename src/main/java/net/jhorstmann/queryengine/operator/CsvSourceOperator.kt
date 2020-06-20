@@ -8,8 +8,10 @@ import java.util.function.Supplier
 
 
 class CsvSourceOperator(private val parserSupplier: Supplier<CSVParser>, private val schema: Schema, private val projection: List<String>) : Operator() {
+    private data class IndexedField(val index: Int, val dataType: DataType)
+
     private var parser: CSVParser? = null
-    private var fields: Array<Pair<Int, DataType>>? = null
+    private var fields: Array<IndexedField>? = null
     private var iterator: Iterator<CSVRecord>? = null
 
     override fun open() {
@@ -25,7 +27,7 @@ class CsvSourceOperator(private val parserSupplier: Supplier<CSVParser>, private
             val idx = headers[name]
                     ?: throw java.lang.IllegalStateException("projected field $name not found in csv headers")
 
-            idx to field.type
+            IndexedField(idx, field.type)
         }.toTypedArray()
 
         this.iterator = parser.iterator()

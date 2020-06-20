@@ -5,11 +5,11 @@ import net.jhorstmann.queryengine.operator.Operator
 import java.lang.IllegalArgumentException
 
 class MemoryTable(override val schema: Schema, val values: List<List<Any?>>) : Table() {
-    override fun getScanOperator(projectedSchema: Schema): Operator {
-        val indices = projectedSchema.fields.map { field ->
-            val idx = schema.fields.indexOfFirst { it.name == field.name }
+    override fun getScanOperator(projection: List<String>): Operator {
+        val indices = projection.map { name ->
+            val idx = schema.fields.indexOfFirst { it.name == name }
             if (idx < 0) {
-                throw IllegalArgumentException("Unknown field ${field.name}")
+                throw IllegalArgumentException("Unknown field $name")
             }
             idx
         }.toIntArray()
