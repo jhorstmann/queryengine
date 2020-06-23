@@ -41,6 +41,7 @@ class Interpreter(val row: Array<Any?>, val accumulators: Array<Accumulator>) : 
             return null
         }
 
+        @Suppress("UNCHECKED_CAST")
         return when (expr.function) {
             Function.IF -> {
                 val cond = ops[0].accept(this) as Boolean?

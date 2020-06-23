@@ -51,6 +51,7 @@ class UnivocityCsvScanOperator(private val file: File, private val settings: Csv
 
         val row = parser.parseNext() ?: return null
 
+        @Suppress("IMPLICIT_CAST_TO_ANY")
         return Array(row.size) { i ->
             val stringValue: String? = row[i]
             if (stringValue.isNullOrEmpty()) {

@@ -11,7 +11,6 @@ class GlobalAggregationOperator(val source: Operator, val expressions: List<RowC
 
         val source = this.source
         val expressions = this.expressions
-        val len = expressions.size
 
         source.forEach { row ->
             expressions.forEach {
