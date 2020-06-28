@@ -10,7 +10,7 @@ internal fun rewriteAggregates(plan: LogicalNode): LogicalNode {
     return when (plan) {
         is LogicalScanNode -> plan
         is LogicalFilterNode -> {
-            if (plan.filter.accept(DetectAggregates)) {
+            if (plan.filter.accept(CountAggregates) > 0) {
                 throw InvalidAggregatesException("Aggregate expressions not allowed in where clause")
             }
             plan
@@ -18,33 +18,33 @@ internal fun rewriteAggregates(plan: LogicalNode): LogicalNode {
         is LogicalProjectionNode -> {
             val source = rewriteAggregates(plan.source)
 
-            val input = plan.expressions.map { it to it.accept(DetectAggregates) }
+            val classifiedExpressions = plan.expressions.map { it to it.accept(CountAggregates) }
 
-            val aggregateCount = input.count { it.second }
-            val groupCount = input.count { !it.second }
+            val aggregateCount = classifiedExpressions.sumBy { it.second }
+            val groupCount = classifiedExpressions.count { it.second == 0 }
 
             if (aggregateCount == 0) {
                 LogicalProjectionNode(source, plan.expressions)
             } else {
                 val rewriteAggregates = RewriteAggregates(groupCount)
 
-                val groupByExpressions = ArrayList<Expression>(groupCount)
-                val projection = input.map { (expr, isAggregate) ->
-                    if (isAggregate) {
+                val aggregateInput = ArrayList<Expression>(groupCount + aggregateCount)
+                val groupByFinish = classifiedExpressions.map { (expr, count) ->
+                    if (count > 0) {
                         expr.accept(rewriteAggregates)
                     } else {
-                        val index = groupByExpressions.size
-                        groupByExpressions.add(expr)
+                        val index = aggregateInput.size
+                        aggregateInput.add(expr)
                         ColumnExpression("_$index", index, expr.dataType)
                     }
                 }
+                aggregateInput.addAll(rewriteAggregates.aggregateInputs)
+                val aggregateFunctions = rewriteAggregates.aggregateFunctions
 
-                val aggregateExpressions = rewriteAggregates.aggregateFunctions
-                val aggregateFunctions = aggregateExpressions.map { it.function }
+                val input = LogicalProjectionNode(source, aggregateInput)
+                val aggregate = LogicalAggregationNode(input, groupCount, aggregateFunctions)
 
-                val aggregateNode = LogicalAggregationNode(source, groupByExpressions, aggregateExpressions, aggregateFunctions)
-
-                LogicalProjectionNode(aggregateNode, projection)
+                LogicalProjectionNode(aggregate, groupByFinish)
             }
         }
         is LogicalOrderByNode -> {
@@ -55,42 +55,43 @@ internal fun rewriteAggregates(plan: LogicalNode): LogicalNode {
     }
 }
 
-private object DetectAggregates : ExpressionVisitor<Boolean> {
-    override fun visitIdentifier(expr: IdentifierExpression): Boolean = false
+private object CountAggregates : ExpressionVisitor<Int> {
+    override fun visitIdentifier(expr: IdentifierExpression): Int = 0
 
-    override fun visitNumericLiteral(expr: NumericLiteralExpression): Boolean = false
+    override fun visitNumericLiteral(expr: NumericLiteralExpression): Int = 0
 
-    override fun visitBooleanLiteral(expr: BooleanLiteralExpression): Boolean = false
+    override fun visitBooleanLiteral(expr: BooleanLiteralExpression): Int = 0
 
-    override fun visitStringLiteral(expr: StringLiteralExpression): Boolean = false
+    override fun visitStringLiteral(expr: StringLiteralExpression): Int = 0
 
-    override fun visitColumn(expr: ColumnExpression): Boolean = false
+    override fun visitColumn(expr: ColumnExpression): Int = 0
 
-    override fun visitFunction(expr: FunctionExpression): Boolean  {
+    override fun visitFunction(expr: FunctionExpression): Int  {
         // validate all args first
         val args = expr.operands.map { it.accept(this) }
-        return args.any { it }
+        return args.sum()
     }
 
-    override fun visitAggregationFunction(expr: AggregationFunctionExpression): Boolean {
-        val containsAggregates = expr.operands.any { it.accept(this) }
+    override fun visitAggregationFunction(expr: AggregationFunctionExpression): Int {
+        val containsAggregates = expr.operands.any { it.accept(this) > 0 }
         if (containsAggregates) {
             throw InvalidAggregatesException("Nested aggregates are not allowed")
         }
-        return true
+        return 1
     }
 
 }
 
 private class RewriteAggregates(val groupExpressionCount: Int) : DefaultExpressionVisitor() {
 
-    internal val aggregateFunctions = mutableListOf<AggregationFunctionExpression>()
+    internal val aggregateInputs = mutableListOf<Expression>()
+    internal val aggregateFunctions = mutableListOf<AggregationFunction>()
 
     override fun visitAggregationFunction(expr: AggregationFunctionExpression): Expression {
         val ops = visitOperands(expr.operands)
         val idx = aggregateFunctions.size
-        val res = expr.with(operands = ops, accumulatorIndex = idx)
-        aggregateFunctions.add(res)
-        return ColumnExpression(res.function.name, groupExpressionCount + idx, res.dataType)
+        aggregateFunctions.add(expr.function)
+        aggregateInputs.add(ops[0])
+        return ColumnExpression(expr.function.name, groupExpressionCount + idx, expr.dataType)
     }
 }

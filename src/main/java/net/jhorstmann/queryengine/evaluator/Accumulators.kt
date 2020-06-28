@@ -3,17 +3,19 @@ package net.jhorstmann.queryengine.evaluator
 import net.jhorstmann.queryengine.ast.AggregationFunction
 
 internal fun initAccumulators(aggregateFunctions: List<AggregationFunction>): Array<Accumulator> {
-    return aggregateFunctions.map {
-        when (it) {
-            AggregationFunction.COUNT -> CountAccumulator()
-            AggregationFunction.SUM -> SumAccumulator()
-            AggregationFunction.AVG -> AvgAccumulator()
-            AggregationFunction.MIN -> MinAccumulator()
-            AggregationFunction.MAX -> MaxAccumulator()
-            AggregationFunction.ALL -> TODO("ALL")
-            AggregationFunction.ANY -> TODO("ANY")
-        }
-    }.toTypedArray()
+    return aggregateFunctions.map { initAccumulator(it) }.toTypedArray()
+}
+
+internal fun initAccumulator(it: AggregationFunction): Accumulator {
+    return when (it) {
+        AggregationFunction.COUNT -> CountAccumulator()
+        AggregationFunction.SUM -> SumAccumulator()
+        AggregationFunction.AVG -> AvgAccumulator()
+        AggregationFunction.MIN -> MinAccumulator()
+        AggregationFunction.MAX -> MaxAccumulator()
+        AggregationFunction.ALL -> TODO("ALL")
+        AggregationFunction.ANY -> TODO("ANY")
+    }
 }
 
 sealed class Accumulator() {

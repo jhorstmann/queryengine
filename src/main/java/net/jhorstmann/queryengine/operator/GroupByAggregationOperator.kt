@@ -1,11 +1,10 @@
 package net.jhorstmann.queryengine.operator
 
+import net.jhorstmann.queryengine.ast.AggregationFunction
 import net.jhorstmann.queryengine.evaluator.Accumulator
-import net.jhorstmann.queryengine.evaluator.RowCallable
-import java.lang.IllegalStateException
-import kotlin.collections.HashMap
+import net.jhorstmann.queryengine.evaluator.initAccumulator
 
-class GroupByAggregationOperator(val source: Operator, val groupBy: List<RowCallable>, val aggregates: List<RowCallable>, val initAccumulators: () -> Array<Accumulator>): Operator() {
+class GroupByAggregationOperator(val source: Operator, private val groupCount: Int, private val aggregateFunctions: List<AggregationFunction>): Operator() {
     private class Key(val row: Array<Any?>) {
         override fun equals(other: Any?): Boolean {
             return row.contentEquals((other as Key).row)
@@ -16,7 +15,6 @@ class GroupByAggregationOperator(val source: Operator, val groupBy: List<RowCall
         }
     }
 
-
     private var map : HashMap<Key, Array<Accumulator>>? = null
     private var iter: Iterator<Map.Entry<Key, Array<Accumulator>>>? = null
 
@@ -24,19 +22,25 @@ class GroupByAggregationOperator(val source: Operator, val groupBy: List<RowCall
         val map = LinkedHashMap<Key, Array<Accumulator>>()
 
         val source = this.source
-        val groupBy = this.groupBy
-        val aggregates = this.aggregates
-        val init = this.initAccumulators
+        val groupCount = this.groupCount
+        val aggregateFunctions = this.aggregateFunctions
 
         source.forEach { row ->
-            val key = Key(Array(groupBy.size) {
-                groupBy[it].invoke(row, emptyArray())
-            })
+            if (row.size != groupCount + aggregateFunctions.size) {
+                throw ArrayIndexOutOfBoundsException()
+            }
 
-            val acc = map.computeIfAbsent(key) { init() }
+            val key = Key(Array(groupCount) { row[it] })
 
-            aggregates.forEach {
-                it.invoke(row, acc)
+            val acc = map.computeIfAbsent(key) {
+                Array(aggregateFunctions.size) { initAccumulator(aggregateFunctions[it]) }
+            }
+
+            acc.forEachIndexed { i, a ->
+                val v = row[groupCount + i]
+                if (v != null) {
+                    a.accumulate(v)
+                }
             }
         }
 

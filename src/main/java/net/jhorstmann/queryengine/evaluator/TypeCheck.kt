@@ -25,10 +25,8 @@ fun typeCheck(plan: LogicalNode): LogicalNode {
             LogicalProjectionNode(source, expressions)
         }
         is LogicalAggregationNode -> {
-            val aggregate = plan.aggregate.map { it.accept(TypeCheckVisitor) }
-            val groupBy = plan.groupBy.map { it.accept(TypeCheckVisitor) }
             val source = typeCheck(plan.source)
-            LogicalAggregationNode(source, groupBy, aggregate, plan.aggregateFunctions)
+            LogicalAggregationNode(source, plan.groupCount, plan.aggregateFunctions)
         }
         is LogicalOrderByNode -> {
             val source = typeCheck(plan.source)

@@ -39,15 +39,13 @@ fun buildPhysicalPlan(tableRegistry: TableRegistry, plan: LogicalNode, mode: Mod
         }
         is LogicalAggregationNode -> {
             val source = buildPhysicalPlan(tableRegistry, plan.source, mode)
-            val initAccumulators = { initAccumulators(plan.aggregateFunctions) }
 
-            val aggregates = plan.aggregate.map { compileExpression(it, mode) }
+            val aggregateFunctions = plan.aggregateFunctions
 
-            if (plan.groupBy.isNotEmpty()) {
-                val groupBy = plan.groupBy.map { compileExpression(it, mode) }
-                GroupByAggregationOperator(source, groupBy, aggregates, initAccumulators)
+            if (plan.groupCount > 0) {
+                GroupByAggregationOperator(source, plan.groupCount, aggregateFunctions)
             } else {
-                GlobalAggregationOperator(source, aggregates, initAccumulators)
+                GlobalAggregationOperator(source, aggregateFunctions)
             }
         }
         is LogicalOrderByNode -> {

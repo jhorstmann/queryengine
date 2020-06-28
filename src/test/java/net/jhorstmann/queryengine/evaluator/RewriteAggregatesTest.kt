@@ -21,13 +21,8 @@ class RewriteAggregatesTest {
 
         val expected = LogicalProjectionNode(
                 LogicalAggregationNode(
-                        scan,
-                        emptyList(),
-                        listOf(AggregationFunctionExpression(
-                                AggregationFunction.SUM,
-                                listOf(ColumnExpression("foo", 0, DataType.DOUBLE)),
-                                DataType.DOUBLE,
-                                0)),
+                        LogicalProjectionNode(scan, listOf(ColumnExpression("foo", 0, DataType.DOUBLE))),
+                        0,
                         listOf(AggregationFunction.SUM)),
                 listOf(ColumnExpression("SUM", 0, DataType.DOUBLE)))
 
@@ -55,24 +50,11 @@ class RewriteAggregatesTest {
 
         val expected = LogicalProjectionNode(
                 LogicalAggregationNode(
-                        scan,
-                        emptyList(),
-                        listOf(
-                                AggregationFunctionExpression(
-                                        AggregationFunction.SUM,
-                                        listOf(ColumnExpression("foo", 0, DataType.DOUBLE)),
-                                        DataType.DOUBLE,
-                                        0),
-                                AggregationFunctionExpression(
-                                        AggregationFunction.COUNT,
-                                        listOf(ColumnExpression("bar", 1, DataType.DOUBLE)),
-                                        DataType.DOUBLE,
-                                        1),
-                                AggregationFunctionExpression(
-                                        AggregationFunction.AVG,
-                                        listOf(ColumnExpression("foo", 0, DataType.DOUBLE)),
-                                        DataType.DOUBLE,
-                                        2)),
+                        LogicalProjectionNode(scan,                         listOf(
+                                ColumnExpression("foo", 0, DataType.DOUBLE),
+                                ColumnExpression("bar", 1, DataType.DOUBLE),
+                                ColumnExpression("foo", 0, DataType.DOUBLE))),
+                        0,
                         listOf(AggregationFunction.SUM, AggregationFunction.COUNT, AggregationFunction.AVG)),
                 listOf(
                         ColumnExpression("SUM", 0, DataType.DOUBLE),
@@ -103,19 +85,8 @@ class RewriteAggregatesTest {
 
         val expected = LogicalProjectionNode(
                 LogicalAggregationNode(
-                        scan,
-                        emptyList(),
-                        listOf(
-                                AggregationFunctionExpression(
-                                        AggregationFunction.COUNT,
-                                        listOf(ColumnExpression("bar", 1, DataType.DOUBLE)),
-                                        DataType.DOUBLE,
-                                        0),
-                                AggregationFunctionExpression(
-                                        AggregationFunction.COUNT,
-                                        listOf(ColumnExpression("foo", 0, DataType.DOUBLE)),
-                                        DataType.DOUBLE,
-                                        1)),
+                        LogicalProjectionNode(scan, listOf(ColumnExpression("bar", 1, DataType.DOUBLE), ColumnExpression("foo", 0, DataType.DOUBLE))),
+                        0,
                         listOf(AggregationFunction.COUNT, AggregationFunction.COUNT)),
                 listOf(
                         FunctionExpression(
