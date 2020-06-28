@@ -7,12 +7,12 @@ enum class Mode {
 }
 
 abstract class RowCallable {
-    abstract operator fun invoke(row: Array<Any?>, acc: Array<Accumulator>): Any?
+    abstract operator fun invoke(row: Array<Any?>): Any?
 }
 
 private class InterpretedRowCallable(val expression: Expression): RowCallable() {
-    override fun invoke(row: Array<Any?>, acc: Array<Accumulator>): Any? {
-        return expression.accept(Interpreter(row, acc))
+    override fun invoke(row: Array<Any?>): Any? {
+        return expression.accept(Interpreter(row))
     }
 
 }

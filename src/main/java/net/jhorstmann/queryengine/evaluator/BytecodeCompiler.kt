@@ -51,7 +51,7 @@ fun compile(expression: Expression): RowCallable {
     init.visitMaxs(1, 1)
     init.visitEnd()
 
-    val invokeDesc = "([${objectType.descriptor}[${accumulatorType.descriptor})${objectType.descriptor}"
+    val invokeDesc = "([${objectType.descriptor})${objectType.descriptor}"
     val call = cv.visitMethod(Opcodes.ACC_PUBLIC, "invoke", invokeDesc, null, emptyArray())
 
     call.visitCode()
@@ -62,7 +62,7 @@ fun compile(expression: Expression): RowCallable {
     ga.returnValue()
 
     val maxStack = expression.accept(MaxStackVisitor)
-    call.visitMaxs(maxStack, 3)
+    call.visitMaxs(maxStack, 2)
     call.visitEnd()
 
     val bytes = cw.toByteArray()
@@ -411,26 +411,7 @@ private class Compiler(private val ga: GeneratorAdapter) : ExpressionVisitor<Uni
     }
 
     override fun visitAggregationFunction(expr: AggregationFunctionExpression) {
-        val ifnull = Label()
-        val end = Label()
-        expr.operands[0].accept(this)
-        ga.dup()
-
-        ga.ifNull(ifnull)
-
-        ga.loadArg(1)
-        ga.push(expr.accumulatorIndex)
-        ga.arrayLoad(accumulatorType)
-        ga.swap()
-        ga.visitMethodInsn(Opcodes.INVOKEVIRTUAL, accumulatorType.internalName, "accumulate", "(${objectType.descriptor})V", false)
-        ga.goTo(end)
-
-        ga.mark(ifnull)
-        ga.pop()
-
-
-        ga.mark(end)
-        ga.pushNull()
+        throw IllegalStateException("Unexpected aggregation expression in expression compiler")
     }
 
     override fun visitColumn(expr: ColumnExpression) {

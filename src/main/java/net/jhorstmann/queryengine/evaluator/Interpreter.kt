@@ -4,7 +4,7 @@ import net.jhorstmann.queryengine.ast.*
 import net.jhorstmann.queryengine.ast.Function
 
 
-class Interpreter(val row: Array<Any?>, val accumulators: Array<Accumulator>) : ExpressionVisitor<Any?> {
+class Interpreter(val row: Array<Any?>) : ExpressionVisitor<Any?> {
 
     override fun visitIdentifier(expr: IdentifierExpression): Any? {
         throw IllegalStateException("Identifier not expected during evaluation")
@@ -109,14 +109,7 @@ class Interpreter(val row: Array<Any?>, val accumulators: Array<Accumulator>) : 
     }
 
     override fun visitAggregationFunction(expr: AggregationFunctionExpression): Any? {
-        val arg = expr.operands[0].accept(this)
-
-        val idx = expr.accumulatorIndex
-        val acc = accumulators[idx]
-        if (arg != null) {
-            acc.accumulate(arg)
-        }
-        return null
+        throw IllegalStateException("Unexpected aggregation expression in expression compiler")
     }
 }
 

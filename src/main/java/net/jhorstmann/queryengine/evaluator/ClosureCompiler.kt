@@ -7,10 +7,10 @@ import java.lang.IllegalStateException
 
 internal class ClosureCompiler : ExpressionVisitor<RowCallable> {
     companion object {
-        private inline fun callable(crossinline closure: (Array<Any?>, Array<Accumulator>) -> Any?): RowCallable {
+        private inline fun callable(crossinline closure: (Array<Any?>) -> Any?): RowCallable {
             return object : RowCallable() {
-                override fun invoke(row: Array<Any?>, acc: Array<Accumulator>): Any? {
-                    return closure(row, acc)
+                override fun invoke(row: Array<Any?>): Any? {
+                    return closure(row)
                 }
             }
         }
@@ -18,8 +18,8 @@ internal class ClosureCompiler : ExpressionVisitor<RowCallable> {
         private inline fun unary(ops: List<RowCallable>, crossinline closure: (Any) -> Any?): RowCallable {
             val op = ops[0]
             return object : RowCallable() {
-                override fun invoke(row: Array<Any?>, acc: Array<Accumulator>): Any? {
-                    val a = op(row, acc) ?: return null
+                override fun invoke(row: Array<Any?>): Any? {
+                    val a = op(row) ?: return null
                     return closure(a)
                 }
             }
@@ -29,38 +29,13 @@ internal class ClosureCompiler : ExpressionVisitor<RowCallable> {
             val op1 = ops[0]
             val op2 = ops[1]
             return object : RowCallable() {
-                override fun invoke(row: Array<Any?>, acc: Array<Accumulator>): Any? {
-                    val a = op1(row, acc) ?: return null
-                    val b = op2(row, acc) ?: return null
+                override fun invoke(row: Array<Any?>): Any? {
+                    val a = op1(row) ?: return null
+                    val b = op2(row) ?: return null
                     return closure(a, b)
                 }
             }
         }
-
-        private inline fun aggregate(idx: Int, input: RowCallable): RowCallable {
-            return object : RowCallable() {
-                override fun invoke(row: Array<Any?>, acc: Array<Accumulator>): Any? {
-                    val res = input(row, acc)
-                    if (res != null) {
-                        acc[idx].accumulate(res)
-                    }
-                    return null
-                }
-            }
-        }
-
-        private inline fun aggregateColumn(rowidx: Int, accidx: Int): RowCallable {
-            return object : RowCallable() {
-                override fun invoke(row: Array<Any?>, acc: Array<Accumulator>): Any? {
-                    val res = row[rowidx]
-                    if (res != null) {
-                        acc[accidx].accumulate(res)
-                    }
-                    return null
-                }
-            }
-        }
-
     }
 
     override fun visitIdentifier(expr: IdentifierExpression): RowCallable {
@@ -69,22 +44,22 @@ internal class ClosureCompiler : ExpressionVisitor<RowCallable> {
 
     override fun visitNumericLiteral(expr: NumericLiteralExpression): RowCallable {
         val value = expr.value
-        return callable { _, _ -> value }
+        return callable { value }
     }
 
     override fun visitBooleanLiteral(expr: BooleanLiteralExpression): RowCallable {
         val value = expr.value
-        return callable { _, _ -> value }
+        return callable { value }
     }
 
     override fun visitStringLiteral(expr: StringLiteralExpression): RowCallable {
         val value = expr.value
-        return callable { _, _ -> value }
+        return callable { value }
     }
 
     override fun visitColumn(expr: ColumnExpression): RowCallable {
         val idx = expr.index
-        return callable { row, _ -> row[idx] }
+        return callable { row -> row[idx] }
     }
 
     override fun visitFunction(expr: FunctionExpression): RowCallable {
@@ -92,20 +67,20 @@ internal class ClosureCompiler : ExpressionVisitor<RowCallable> {
         val ops = expr.operands.map { it.accept(this) }
 
         return when (expr.function) {
-            Function.IF -> callable { row, acc ->
-                val cond = ops[0](row, acc) as Boolean?
+            Function.IF -> callable { row ->
+                val cond = ops[0](row) as Boolean?
                 when {
                     cond == null -> null
-                    cond -> ops[1](row, acc)
-                    else -> ops[2](row, acc)
+                    cond -> ops[1](row)
+                    else -> ops[2](row)
                 }
             }
 
-            Function.AND -> callable { row, acc ->
-                val p = ops[0](row, acc) as Boolean?
+            Function.AND -> callable { row ->
+                val p = ops[0](row) as Boolean?
                 when {
                     p == null -> {
-                        val q = ops[1](row, acc) as Boolean?
+                        val q = ops[1](row) as Boolean?
                         if (q == null) {
                             null
                         } else if (!q) {
@@ -115,16 +90,16 @@ internal class ClosureCompiler : ExpressionVisitor<RowCallable> {
                         }
                     }
                     p -> {
-                        ops[1](row, acc) as Boolean?
+                        ops[1](row) as Boolean?
                     }
                     else -> false
                 }
             }
-            Function.OR -> callable { row, acc ->
-                val p = ops[0](row, acc) as Boolean?
+            Function.OR -> callable { row ->
+                val p = ops[0](row) as Boolean?
                 when {
                     p == null -> {
-                        val q = ops[1](row, acc) as Boolean?
+                        val q = ops[1](row) as Boolean?
                         if (q == null) {
                             null
                         } else if (q) {
@@ -134,7 +109,7 @@ internal class ClosureCompiler : ExpressionVisitor<RowCallable> {
                         }
                     }
                     p -> true
-                    else -> ops[1](row, acc) as Boolean?
+                    else -> ops[1](row) as Boolean?
                 }
             }
             Function.NOT -> unary(ops) { a -> !(a as Boolean) }
@@ -157,34 +132,6 @@ internal class ClosureCompiler : ExpressionVisitor<RowCallable> {
     }
 
     override fun visitAggregationFunction(expr: AggregationFunctionExpression): RowCallable {
-
-        // all aggregation functions take only a single argument
-        val op = expr.operands[0]
-
-        // list all functions separately to inline separate closure implementations
-        if (op is ColumnExpression) {
-            val rowidx = op.index
-            val accidx = expr.accumulatorIndex
-            return when (expr.function) {
-                AggregationFunction.COUNT -> aggregateColumn(rowidx, accidx)
-                AggregationFunction.SUM -> aggregateColumn(rowidx, accidx)
-                AggregationFunction.AVG -> aggregateColumn(rowidx, accidx)
-                AggregationFunction.MIN -> aggregateColumn(rowidx, accidx)
-                AggregationFunction.MAX -> aggregateColumn(rowidx, accidx)
-                AggregationFunction.ANY -> aggregateColumn(rowidx, accidx)
-                AggregationFunction.ALL -> aggregateColumn(rowidx, accidx)
-            }
-        } else {
-            val input = op.accept(this)
-            return when (expr.function) {
-                AggregationFunction.COUNT -> aggregate(expr.accumulatorIndex, input)
-                AggregationFunction.SUM -> aggregate(expr.accumulatorIndex, input)
-                AggregationFunction.AVG -> aggregate(expr.accumulatorIndex, input)
-                AggregationFunction.MIN -> aggregate(expr.accumulatorIndex, input)
-                AggregationFunction.MAX -> aggregate(expr.accumulatorIndex, input)
-                AggregationFunction.ANY -> aggregate(expr.accumulatorIndex, input)
-                AggregationFunction.ALL -> aggregate(expr.accumulatorIndex, input)
-            }
-        }
+        throw IllegalStateException("Unexpected aggregation expression in expression compiler")
     }
 }

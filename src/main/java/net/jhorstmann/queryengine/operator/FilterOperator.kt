@@ -16,7 +16,7 @@ class FilterOperator(val source: Operator, val expression: RowCallable) : Operat
         val expression = this.expression
         while (true) {
             val row = source.next() ?: return null
-            val res = expression(row, emptyArray())
+            val res = expression(row)
             if (res != null && (res as Boolean)) {
                 return row
             }

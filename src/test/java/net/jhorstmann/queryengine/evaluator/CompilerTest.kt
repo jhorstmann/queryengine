@@ -17,7 +17,7 @@ class CompilerTest {
 
         val callable = compileExpression(expr, mode)
 
-        val res = callable(arrayOf("foobar"), emptyArray())
+        val res = callable(arrayOf("foobar"))
 
         assertEquals("foobar", res)
     }
@@ -29,24 +29,9 @@ class CompilerTest {
 
         val callable = compileExpression(expr, mode)
 
-        val res = callable(emptyArray(), emptyArray())
+        val res = callable(emptyArray())
 
         assertEquals(3.0, res)
-    }
-
-    @EnumSource(Mode::class)
-    @ParameterizedTest
-    fun `should aggregate inputs`(mode: Mode) {
-        val expr = AggregationFunctionExpression(AggregationFunction.SUM, listOf(ColumnExpression("foo", 0, DataType.DOUBLE)), DataType.DOUBLE, 0)
-
-        val callable = compileExpression(expr, mode)
-
-        val acc = arrayOf<Accumulator>(SumAccumulator())
-
-        callable(arrayOf(1.0), acc)
-        callable(arrayOf(2.0), acc)
-
-        assertEquals(3.0, acc[0].finish())
     }
 
     @EnumSource(Mode::class)
@@ -56,7 +41,7 @@ class CompilerTest {
 
         val callable = compileExpression(expr, mode)
 
-        val res = callable(arrayOf(10.0, null), emptyArray())
+        val res = callable(arrayOf(10.0, null))
 
         assertNull(res)
     }
@@ -82,7 +67,7 @@ class CompilerTest {
         val callable = compileExpression(expr, mode)
 
         for ((row, expected) in truth) {
-            val res = callable(row, emptyArray())
+            val res = callable(row)
 
             assertEquals(expected, res, "Expected (${row[0]} AND ${row[1]}) == $expected")
         }
@@ -108,7 +93,7 @@ class CompilerTest {
         val callable = compileExpression(expr, mode)
 
         for ((row, expected) in truth) {
-            val res = callable(row, emptyArray())
+            val res = callable(row)
 
             assertEquals(expected, res, "Expected (${row[0]} OR ${row[1]}) == $expected")
         }
@@ -128,7 +113,7 @@ class CompilerTest {
         val callable = compileExpression(expr, mode)
 
         for ((row, expected) in truth) {
-            val res = callable(row, emptyArray())
+            val res = callable(row)
 
             assertEquals(expected, res, "Expected (IF ${row[0]} THEN t ELSE f) == $expected")
         }

@@ -20,8 +20,7 @@ fun main() {
             Mode.BYTECODE_COMPILER)
 
     val row: Array<Any?> = arrayOf<Any?>()
-    val acc: Array<Accumulator> = arrayOf<Accumulator>(SumAccumulator())
-    val res = callable(row, acc)
+    val res = callable(row)
 
     println(res)
     //println(row.toList())
