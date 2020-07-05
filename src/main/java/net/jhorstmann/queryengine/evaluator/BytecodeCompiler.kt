@@ -3,6 +3,8 @@ package net.jhorstmann.queryengine.evaluator
 import net.jhorstmann.queryengine.ast.*
 import net.jhorstmann.queryengine.ast.Function
 import net.jhorstmann.queryengine.data.DataType
+import net.jhorstmann.queryengine.operator.Operator
+import net.jhorstmann.queryengine.operator.ProjectionOperator
 import org.objectweb.asm.*
 import org.objectweb.asm.commons.GeneratorAdapter
 import org.objectweb.asm.util.CheckClassAdapter
@@ -17,7 +19,7 @@ private object CustomClassLoader : ClassLoader(CustomClassLoader::class.java.cla
     }
 }
 
-private val accumulatorType = Type.getType(Accumulator::class.java)
+private val operatorType = Type.getType(Operator::class.java)
 private val objectType = Type.getType(Object::class.java)
 private val doubleType = Type.getType(java.lang.Double::class.java)
 private val booleanType = Type.getType(java.lang.Boolean::class.java)
@@ -32,6 +34,102 @@ class CommonValueClassWriter(flags: Int) : ClassWriter(flags) {
 
 private val counter = AtomicInteger()
 
+fun compileProjection(projection: LogicalProjectionNode, source: Operator): Operator {
+    val name = "Compiled${ProjectionOperator::class.java.simpleName}\$${counter.incrementAndGet()}"
+
+    val cw = CommonValueClassWriter(ClassWriter.COMPUTE_FRAMES or ClassWriter.COMPUTE_MAXS)
+    val cv: ClassVisitor = CheckClassAdapter(cw)
+
+    cv.visit(Opcodes.V1_8, Opcodes.ACC_PUBLIC, name, null, operatorType.internalName, emptyArray())
+
+    cv.visitField(Opcodes.ACC_PRIVATE, "source", operatorType.descriptor, null, null)
+
+    val init = cv.visitMethod(Opcodes.ACC_PUBLIC, "<init>", "(${operatorType.descriptor})V", null, null)
+
+    init.visitCode()
+    init.visitVarInsn(Opcodes.ALOAD, 0)
+    init.visitMethodInsn(Opcodes.INVOKESPECIAL, operatorType.internalName, "<init>", "()V", false)
+
+    init.visitVarInsn(Opcodes.ALOAD, 0)
+    init.visitVarInsn(Opcodes.ALOAD, 1)
+    init.visitFieldInsn(Opcodes.PUTFIELD, name, "source", operatorType.descriptor)
+
+    init.visitInsn(Opcodes.RETURN)
+    init.visitMaxs(2, 2)
+    init.visitEnd()
+
+
+    val openMethod = cv.visitMethod(Opcodes.ACC_PUBLIC, "open", "()V", null, null)
+    openMethod.visitCode()
+    openMethod.visitVarInsn(Opcodes.ALOAD, 0)
+    openMethod.visitFieldInsn(Opcodes.GETFIELD, name, "source", operatorType.descriptor)
+    openMethod.visitMethodInsn(Opcodes.INVOKEVIRTUAL, operatorType.internalName, "open", "()V", false)
+    openMethod.visitInsn(Opcodes.RETURN)
+    openMethod.visitMaxs(1, 1)
+    openMethod.visitEnd()
+
+    val closeMethod = cv.visitMethod(Opcodes.ACC_PUBLIC, "close", "()V", null, null)
+    closeMethod.visitCode()
+    closeMethod.visitVarInsn(Opcodes.ALOAD, 0)
+    closeMethod.visitFieldInsn(Opcodes.GETFIELD, name, "source", operatorType.descriptor)
+    closeMethod.visitMethodInsn(Opcodes.INVOKEVIRTUAL, operatorType.internalName, "close", "()V", false)
+
+    closeMethod.visitInsn(Opcodes.RETURN)
+    closeMethod.visitMaxs(1, 1)
+    closeMethod.visitEnd()
+
+    val nextMethodDescriptor = "()[${objectType.descriptor}"
+    val nextMethod = cv.visitMethod(Opcodes.ACC_PUBLIC, "next", nextMethodDescriptor, null, null)
+    nextMethod.visitCode()
+
+    val nonNull = Label()
+
+    // input row
+    nextMethod.visitVarInsn(Opcodes.ALOAD, 0)
+    nextMethod.visitFieldInsn(Opcodes.GETFIELD, name, "source", operatorType.descriptor)
+    nextMethod.visitMethodInsn(Opcodes.INVOKEVIRTUAL, operatorType.internalName, "next", nextMethodDescriptor, false)
+    nextMethod.visitInsn(Opcodes.DUP)
+    nextMethod.visitJumpInsn(Opcodes.IFNONNULL, nonNull)
+    nextMethod.visitInsn(Opcodes.ARETURN)
+
+    nextMethod.visitLabel(nonNull)
+    nextMethod.visitVarInsn(Opcodes.ASTORE, 1)
+
+    // output row
+    nextMethod.visitLdcInsn(projection.expressions.size)
+    nextMethod.visitTypeInsn(Opcodes.ANEWARRAY, objectType.internalName)
+    nextMethod.visitVarInsn(Opcodes.ASTORE, 2)
+
+    projection.expressions.forEachIndexed {i, expr ->
+        val ga = GeneratorAdapter(nextMethod, Opcodes.ACC_PUBLIC, "next", nextMethodDescriptor)
+        val compiler = Compiler(ga)
+        expr.accept(compiler)
+
+        nextMethod.visitVarInsn(Opcodes.ALOAD, 2)
+        nextMethod.visitInsn(Opcodes.SWAP)
+        nextMethod.visitLdcInsn(i)
+        nextMethod.visitInsn(Opcodes.SWAP)
+        nextMethod.visitInsn(Opcodes.AASTORE)
+    }
+
+    nextMethod.visitVarInsn(Opcodes.ALOAD, 2)
+    nextMethod.visitInsn(Opcodes.ARETURN)
+
+    val maxStack = projection.expressions.map { it.accept(MaxStackVisitor) }.max() ?: 0
+    nextMethod.visitMaxs(Math.max(3, 1+maxStack), 3)
+    nextMethod.visitEnd()
+
+    val bytes = cw.toByteArray()
+
+    FileOutputStream("target/classes/$name.class").use {
+        it.write(bytes)
+    }
+
+    val projectionOperatorClass = CustomClassLoader.defineClass(name, bytes)
+
+    @Suppress("UNCHECKED_CAST")
+    return projectionOperatorClass.getDeclaredConstructor(Operator::class.java).newInstance(source) as Operator
+}
 
 fun compile(expression: Expression): RowCallable {
     val name = "Compiled${RowCallable::class.java.simpleName}\$${counter.incrementAndGet()}"
@@ -56,10 +154,9 @@ fun compile(expression: Expression): RowCallable {
 
     call.visitCode()
 
-    val ga = GeneratorAdapter(call, Opcodes.ACC_PUBLIC, "invoke", invokeDesc)
-    val compiler = Compiler(ga)
+    val compiler = Compiler(GeneratorAdapter(call, Opcodes.ACC_PUBLIC, "invoke", invokeDesc))
     expression.accept(compiler)
-    ga.returnValue()
+    call.visitInsn(Opcodes.ARETURN)
 
     val maxStack = expression.accept(MaxStackVisitor)
     call.visitMaxs(maxStack, 2)
@@ -415,7 +512,8 @@ private class Compiler(private val ga: GeneratorAdapter) : ExpressionVisitor<Uni
     }
 
     override fun visitColumn(expr: ColumnExpression) {
-        ga.loadArg(0)
+        //ga.loadArg(0)
+        ga.visitVarInsn(Opcodes.ALOAD, 1)
         ga.push(expr.index)
         ga.arrayLoad(objectType)
         when (expr.dataType) {

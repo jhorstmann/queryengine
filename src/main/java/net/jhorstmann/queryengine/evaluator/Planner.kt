@@ -22,8 +22,9 @@ fun buildLogicalPlan(tableRegistry: TableRegistry, query: Query): LogicalNode {
     val resolvedPlan = resolveSchema(plan)
     val checkedPlan = typeCheck(resolvedPlan)
     val aggregatedPlan = rewriteAggregates(checkedPlan)
+    val optimized = removeUnnededProjections(aggregatedPlan)
 
-    return aggregatedPlan
+    return optimized
 }
 
 fun buildPhysicalPlan(tableRegistry: TableRegistry, plan: LogicalNode, mode: Mode = Mode.INTERPRETER): Operator {
@@ -34,8 +35,14 @@ fun buildPhysicalPlan(tableRegistry: TableRegistry, plan: LogicalNode, mode: Mod
             FilterOperator(source, compileExpression(plan.filter, mode))
         }
         is LogicalProjectionNode -> {
+
             val source = buildPhysicalPlan(tableRegistry, plan.source, mode)
-            ProjectionOperator(source, plan.expressions.map { compileExpression(it, mode) })
+
+            if (mode == Mode.BYTECODE_COMPILER) {
+                compileProjection(plan, source)
+            } else {
+                ProjectionOperator(source, plan.expressions.map { compileExpression(it, mode) })
+            }
         }
         is LogicalAggregationNode -> {
             val source = buildPhysicalPlan(tableRegistry, plan.source, mode)

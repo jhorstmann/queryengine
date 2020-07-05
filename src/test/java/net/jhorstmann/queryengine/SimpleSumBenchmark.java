@@ -50,7 +50,7 @@ public class SimpleSumBenchmark {
             registry.register("table", table);
 
 
-            Query query = ParserHelperKt.parseQuery("SELECT SUM(foo + 10*bar) / 2 FROM table");
+            Query query = ParserHelperKt.parseQuery("SELECT SUM(foo + 10*bar) FROM table");
             LogicalNode logicalPlan = PlannerKt.buildLogicalPlan(registry, query);
 
             interpretedPlan = PlannerKt.buildPhysicalPlan(registry, logicalPlan, Mode.INTERPRETER);
@@ -93,7 +93,7 @@ public class SimpleSumBenchmark {
         }
     }
 
-    @Benchmark
+    //@Benchmark
     public Object runNative(Input input) {
         Operator plan = input.table.getScanOperator(input.projection);
         plan.open();

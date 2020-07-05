@@ -1,6 +1,7 @@
 package net.jhorstmann.queryengine
 
 import net.jhorstmann.queryengine.data.*
+import net.jhorstmann.queryengine.evaluator.Mode
 import java.io.File
 import kotlin.system.measureTimeMillis
 
@@ -18,14 +19,14 @@ fun main() {
     // Queries from https://andygrove.io/2019/04/datafusion-0.13.0-benchmarks/
 
     val t1 = measureTimeMillis {
-        val query = query(registry, "SELECT MIN(tip_amount), MAX(tip_amount) FROM tripdata")
+        val query = query(registry, "SELECT MIN(tip_amount), MAX(tip_amount) FROM tripdata", Mode.CLOSURE_COMPILER)
         println(query.map { it.contentToString() })
     }
 
     println(t1 / 1000.0)
 
     val t2 = measureTimeMillis {
-        val query = query(registry, "SELECT passenger_count, MIN(fare_amount), MAX(fare_amount) FROM tripdata")
+        val query = query(registry, "SELECT passenger_count, MIN(fare_amount), MAX(fare_amount) FROM tripdata", Mode.CLOSURE_COMPILER)
         println(query.map { it.contentToString() })
     }
 

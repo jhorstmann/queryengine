@@ -49,7 +49,7 @@ fun main() {
          ORDER BY 1
     """
 
-    val rows = query(registry, query)
+    val rows = query(registry, query, Mode.BYTECODE_COMPILER)
 
     for (row in rows) {
         println(Arrays.toString(row))
