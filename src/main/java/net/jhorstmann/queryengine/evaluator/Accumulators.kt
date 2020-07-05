@@ -54,36 +54,38 @@ class SumAccumulator() : Accumulator() {
 }
 
 class MinAccumulator() : Accumulator() {
-    private var min: Double? = null
+    private var min: Double = Double.POSITIVE_INFINITY
+    private var count = 0
 
     override fun accumulate(value: Any) {
-        val min = this.min
-        if (min == null) {
-            this.min = value as Double
-        } else {
-            this.min = Math.min(min, value as Double)
-        }
+        count++
+        min = Math.min(min, value as Double)
     }
 
     override fun finish(): Any? {
-        return min
+        return if (count == 0) {
+            null
+        } else {
+            return min
+        }
     }
 }
 
 class MaxAccumulator() : Accumulator() {
-    private var max: Double? = null
+    private var max: Double = Double.NEGATIVE_INFINITY
+    private var count = 0
 
     override fun accumulate(value: Any) {
-        val max = this.max
-        if (max == null) {
-            this.max = value as Double
-        } else {
-            this.max = Math.max(max, value as Double)
-        }
+        count++
+        max = Math.max(max, value as Double)
     }
 
     override fun finish(): Any? {
-        return max
+        return if (count == 0) {
+            null
+        } else {
+            max
+        }
     }
 }
 
